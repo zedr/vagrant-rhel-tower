@@ -1,0 +1,22 @@
+- hosts: all
+  order: sorted
+  gather_facts: False
+  become_user: root
+  become: true
+  tasks:
+    - file:
+        path: /root/.ssh
+        owner: root
+        group: root
+        state: directory
+        mode: '0600'
+    - copy:
+        src: ~/.ssh/id_rsa.pub 
+        dest: /root/.ssh/authorized_keys
+        mode: '0600'
+    - redhat_subscription:
+        state: present
+        username: "{{ rh_sub_user }}"
+        password: "{{ rh_sub_pass }}"
+        auto_attach: true
+      when: rh_sub_user is defined and rh_sub_pass is defined

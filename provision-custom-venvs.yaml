@@ -1,0 +1,88 @@
+---
+- name: Provision custom virtualenvs
+  hosts: all
+  become: yes
+  become_user: root
+  vars:
+    custom_envs_home_path: /opt/my-envs/
+    custom_envs:
+      - tower-sync
+    tower_host: tower.local
+    tower_port: 443
+    tower_user: admin
+    tower_password: password
+    awx_cli_version: 13.0.0
+  tasks:
+
+    - name: Add extra repository
+      rhsm_repository:
+        name: rhel-7-server-optional-rpms
+        state: present
+      tags:
+        - packages
+
+    - name: Install dependencies
+      yum:
+        name:
+          - python36
+          - python36-devel
+          - libselinux-python3
+          - ansible-python3
+        state: present
+
+    - name: Create the custom venvs home
+      file:
+        path: "{{ custom_envs_home_path }}"
+        mode: "0755"
+        state: directory
+      tags:
+        - virtualenv
+
+    - name: Create the virtual environments
+      pip:
+        chdir: "{{ custom_envs_home_path }}"
+        virtualenv: "{{ item }}"
+        virtualenv_python: "python3.6"
+        virtualenv_site_packages: no
+        name:
+          - psutil==5.4.3
+          - ansible
+          - "https://github.com/ansible/awx/archive/{{ awx_cli_version }}.tar.gz#egg=awxkit&subdirectory=awxkit"
+      loop: "{{ custom_envs }}"
+      tags:
+        - virtualenv
+
+    - name: Create the temporary collection home
+      file:
+        path: /tmp/tower-custom/
+        mode: "0755"
+        state: directory
+      tags:
+        - virtualenv
+        - collection-install
+
+    - name: Copy over our collections
+      copy:
+        src: "{{ item }}"
+        dest: /tmp/tower-custom/
+      with_fileglob:
+        - "dist/collections/*.tar.gz"
+      tags:
+        - virtualenv
+        - collection-install
+
+    - name: Patch Tower to enable the custom venvs
+      uri:
+        url: "https://{{ tower_host }}:{{ tower_port }}/api/v2/settings/system/"
+        force_basic_auth: yes
+        method: PATCH
+        validate_certs: no
+        user: "{{ tower_user }}"
+        password: "{{ tower_password }}"
+        body_format: json
+        body:
+          CUSTOM_VENV_PATHS:
+            - "{{ custom_envs_home_path }}"
+      tags:
+        - virtualenv
+

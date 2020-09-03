@@ -1,0 +1,54 @@
+- hosts: tower
+  gather_facts: false
+  become: yes
+  vars:
+    tower_version: "3.7.1-1"
+    inv_admin_password: "password"
+    inv_pg_password: "awx"
+  tasks:
+
+    - name: "Register system as user {{ rh_sub_user }}"
+      redhat_subscription:
+        state: present
+        username: "{{ rh_sub_user }}"
+        password: "{{ rh_sub_pass }}"
+        auto_attach: yes
+      when: rh_sub_pass != ""
+      tags:
+        - registration
+        - packages
+
+    - name: Add rpms
+      rhsm_repository:
+        name: rhel-7-server-ansible-2.9-rpms  
+        state: enabled
+      tags:
+        - packages
+
+    - name: Download Ansible Tower setup archive
+      unarchive:
+        src: "https://releases.ansible.com/ansible-tower/setup/ansible-tower-setup-{{ tower_version }}.tar.gz"
+        remote_src: yes
+        dest: "/tmp/"
+      tags:
+        - tower_install
+
+    - name: Run the Ansible Tower installation script
+      command:
+        chdir: "/tmp/ansible-tower-setup-{{ tower_version }}/"
+        argv:
+          - "/bin/bash"
+          - "setup.sh"
+          - "-e" 
+          - "admin_password={{ inv_admin_password }}"
+          - "-e"
+          - "pg_password={{ inv_pg_password }}"
+      register: setup_output
+      tags:
+        - tower_install
+
+    - name: Print any stderr output
+      debug:
+        msg: "{{ setup_output.stdout_lines }}"
+      tags:
+        - tower_install
