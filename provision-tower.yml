@@ -2,7 +2,7 @@
   gather_facts: false
   become: yes
   vars:
-    tower_version: "3.7.1-1"
+    tower_version: "3.8.1-1"
     inv_admin_password: "password"
     inv_pg_password: "awx"
   tasks:

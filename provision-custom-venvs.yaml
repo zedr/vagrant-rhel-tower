@@ -71,7 +71,7 @@
         - virtualenv
         - collection-install
 
-    - name: Patch Tower to enable the custom venvs
+    - name: Patch Tower API System resource to enable the custom venvs
       uri:
         url: "https://{{ tower_host }}:{{ tower_port }}/api/v2/settings/system/"
         force_basic_auth: yes
